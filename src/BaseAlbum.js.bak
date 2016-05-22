@@ -1,0 +1,383 @@
+import Modal from "./Modal.js";
+
+function BaseAlbum(opt) {
+    // 布局的枚举类型
+    this.LAYOUT = {
+        PUZZLE: 1,    // 拼图布局
+        WATERFALL: 2, // 瀑布布局
+        BARREL: 3     // 木桶布局
+    };
+    this.images = [];
+    this.container = null;
+    this.elements = [];
+    this.layout = 1;
+    this.gutter = {
+        x : 0,
+        y : 0, 
+    };
+    // {number|string 'auto'} 
+    this.size = {
+        width : 'auto',
+        height : 'auto',
+    };
+    this.fullScreen = false;
+    this.resizeRefresh = false;
+    this.scrollFetch = false;
+    this.ajaxUrl = "";
+    this.modal = null;
+    this.config = opt;
+    //this.init(opt);
+}
+// 私有变量可以写在这里
+// var xxx = ...
+/************* 以下是本库提供的公有方法 *************/
+
+/**
+ * 初始化并设置相册
+ * 当相册原本包含图片时，该方法会替换原有图片
+ * @param {(string|string[])} image  一张图片的 URL 或多张图片 URL 组成的数组
+ * @param {object}            option 配置项
+ */
+BaseAlbum.prototype.setImage = function (image, option) {
+    if (typeof image === 'string') {
+        // 包装成数组处理
+        this.setImage([image]);
+        return;
+    }
+    // 你的实现
+    //this.images.concat(image);
+    for(var i = 0, len = image.length; i < len; i++) {
+        this.addImage(image[i]);
+    }
+};
+
+/**
+ * 获取相册所有图像对应的 DOM 元素
+ * 可以不是 ，而是更外层的元素
+ * @return {HTMLElement[]} 相册所有图像对应的 DOM 元素组成的数组
+ */
+BaseAlbum.prototype.getImageDomElements = function() {
+    return this.elements;
+};
+
+/**
+ * 向相册添加图片
+ * 在拼图布局下，根据图片数量重新计算布局方式；其他布局下向尾部追加图片
+ * @param {(string|string[])} image 一张图片的 URL 或多张图片 URL 组成的数组
+ */
+BaseAlbum.prototype.addImage = function (image) {
+    this.images.push(image);
+    var div = document.createElement("div");
+    div.style.position = 'absolute';
+    div.setAttribute("class","item");
+    var img = document.createElement("img");
+    //img.style.height = this.option.lineHeight + 'px';
+    img.setAttribute("src", image);
+    img.onload = function(evt){
+        var div = evt.target.parentNode;
+        this.layItem(div);
+    }.bind(this);
+    div.appendChild(img);
+    //div.style.display = 'none';
+    div.style.visibility = 'hidden';
+    this.elements.push(div);
+    this.container.appendChild(div);
+};
+
+/**
+ * 移除相册中的图片
+ * @param  {(HTMLElement|HTMLElement[])} image 需要移除的图片
+ * @return {boolean} 是否全部移除成功
+ */
+BaseAlbum.prototype.removeImage = function (image) {
+};
+
+
+
+/**
+ * 设置相册的布局
+ * @param {number} layout 布局值，IfeAlbum.LAYOUT 中的值
+ */
+BaseAlbum.prototype.setLayout = function (layout) {
+    this.layout = this.LAYOUT[layout];
+};
+
+
+
+/**
+ * 获取相册的布局
+ * @return {number} 布局枚举类型的值
+ */
+BaseAlbum.prototype.getLayout = function() {
+    return this.layout;
+};
+
+
+
+/**
+ * 设置图片之间的间距
+ * 注意这个值仅代表图片间的间距，不应直接用于图片的 margin 属性，如左上角图的左边和上边应该紧贴相册的左边和上边
+ * 相册本身的 padding 始终是 0，用户想修改相册外框的空白需要自己设置相框元素的 padding
+ * @param {number}  x  图片之间的横向间距
+ * @param {number} [y] 图片之间的纵向间距，如果是 undefined 则等同于 x
+ */
+BaseAlbum.prototype.setGutter = function (x, y) {
+    if(x === undefined || y === undefined) {
+        console.log('error gutter value!');
+        return;
+    }
+    this.gutter.x = parseInt(x);
+    this.gutter.y = parseInt(y);
+};
+
+
+
+/**
+ * 允许点击图片时全屏浏览图片
+ */
+BaseAlbum.prototype.enableFullscreen = function () {
+    this.fullScreen = true;
+    this.container.addEventListener("click", this._eventFullscreen);
+};
+
+
+/**
+ * 禁止点击图片时全屏浏览图片
+ */
+BaseAlbum.prototype.disableFullscreen = function () {
+    this.fullScreen = false;
+    this.container.removeEventListener("click", this._eventFullscreen);
+};
+
+
+
+/**
+ * 获取点击图片时全屏浏览图片是否被允许
+ * @return {boolean} 是否允许全屏浏览
+ */
+BaseAlbum.prototype.isFullscreenEnabled = function () {
+    return this.fullScreen;
+};
+
+
+
+BaseAlbum.prototype._eventFullscreen = function (evt) {
+    var target = evt.target;
+    if(target.nodeName.toLowerCase() == "img") {    
+        var child = target.cloneNode(); 
+        child.style.width = "";
+        child.style.height = ""; 
+        if(this.modal) {
+            this.modal.setElement(child);
+        } else {
+            this.modal = Modal(child);
+        }
+        this.modal.show();
+    }
+};
+
+BaseAlbum.prototype.enableScrollFetch = function () {
+    this.scrollFetch = true;
+    window.addEventListener('scroll',this. _eventScrollFetch);
+};
+BaseAlbum.prototype.disableScrollFetch = function () {
+    this.scrollFetch = false;
+    window.removeEventListener('scroll', this._eventScrollFetch);
+};
+BaseAlbum.prototype.isScrollFetchEnabled = function () {
+    return this.scrollFetch;
+};
+BaseAlbum.prototype._eventScrollFetch = function () {
+    function getScrollTop() {
+        var scrollTop = 0;
+        if (document.documentElement && document.documentElement.scrollTop) {
+            scrollTop = document.documentElement.scrollTop;
+        }
+        else if (document.body) {
+            scrollTop = document.body.scrollTop;
+        }
+        return scrollTop;
+    }
+
+    //获取当前可是范围的高度 
+    function getClientHeight() {
+        var clientHeight = 0;
+        if (document.body.clientHeight && document.documentElement.clientHeight) {
+            clientHeight = Math.min(document.body.clientHeight, document.documentElement.clientHeight);
+        } else {
+        clientHeight = Math.max(document.body.clientHeight, document.documentElement.clientHeight);
+        }
+        return clientHeight;
+    }
+
+    //获取文档完整的高度 
+    function getScrollHeight() {
+        return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight);
+    }
+    if (getScrollTop() + getClientHeight() == getScrollHeight()) {
+        this.fetchData(function(status, data){
+            for(var i = 0, len = data.length; i < len; i++) {
+                this.addImage(data[i]); 
+            }
+        });
+    }
+};
+
+BaseAlbum.prototype.fetchData = function (callback) {
+    function ajax(obj) {
+        var xmlHttpReq = null;
+        if (window.ActiveXObject) {
+        //IE浏览器使用ActiveX 
+            xmlHttpReq = new ActiveXObject("Microsoft.XMLHTTP");
+        } else if (window.XMLHttpRequest) {
+        //其它浏览器使用window的子对象XMLHttpRequest 
+            xmlHttpReq = new XMLHttpRequest();
+        }
+        if (xmlHttpReq != null) {
+            xmlHttpReq.open("GET", obj.url, true);
+            //设置回调，当请求的状态发生变化时，就会被调用，传递参数xmlHttpReq 
+            xmlHttpReq.onreadystatechange = function () {
+                if (xmlHttpReq.readyState == 4) {
+                    if(xmlHttpReq.status == 200) {
+                        obj.success(xmlHttpReq.responseText);
+                    }
+                }
+            };
+            //提交请求 
+            xmlHttpReq.send(null);
+        }
+    };
+    ajax({
+            url: this.ajaxUrl + "?p=" + (this.p++),
+            success: function(data){
+                var data = JSON.parse(data);
+                callback(data.status, data.data);
+                /*
+                if(data.status) {
+                    for(var i = 0, len = data.data.length; i<len ; i++) {
+                        this.addImage(data.data[i]['img']);
+                    }
+                }
+                */
+            }.bind(this)
+    });
+},
+
+
+BaseAlbum.prototype.enableResizeRefresh = function () {
+    this.resizeRefresh = true;
+    window.addEventListener('resize', this._eventResizeRefresh.bind(this));
+};
+BaseAlbum.prototype.disableResizeRefresh = function () {
+    this.resizeRefresh = false;
+    window.removeEventListener('resize', this._eventResizeRefresh);
+};
+BaseAlbum.prototype.isResizeRefreshEnabled = function () {
+    return this.resizeRefresh;
+};
+BaseAlbum.prototype._eventResizeRefresh = function () {
+    var old = this.size.width;
+    this.setSize(this.config.size.width || 'auto', this.config.size.height || 'auto');
+    this.clearTmp();
+    this.calLay();
+    if(this.size.width !== old) {
+        this.layLoadItems();
+    }
+};
+
+
+BaseAlbum.prototype.setSize = function (width, height) {
+    //if (min === undefined || max === undefined || min > max) {
+    //    console.error("error size value");
+    //    return;
+    //}
+    if(this.config.size === undefined) {
+        this.config.size = {
+            width : 'auto',    
+            height : 'auto',    
+        };
+    }
+    this.config.size.width = width;
+    this.config.size.height = height;
+    if(width === 'auto') {
+        this.size.width = window.innerWidth - 20;
+    } else {
+        this.size.width = parseInt(width);
+    }
+    if(height === 'auto') {
+        this.size.height = window.innerHeight;
+    } else {
+        this.size.height = parseInt(height);
+    }
+
+    this.container.style.width = this.size.width + "px"; 
+    this.container.style.height = this.size.height + "px"; 
+};
+
+BaseAlbum.prototype.getSize = function () {
+    return this.size;
+}
+
+BaseAlbum.prototype.reLay = function() {
+    this.calLay();
+    this.layLoadItems();
+}
+
+BaseAlbum.prototype.setAjaxurl = function(url) {
+    this.ajaxUrl = url;
+}
+
+BaseAlbum.prototype.setContainer = function(ele) {
+    if(ele === undefined || !ele) {
+        console.error("element is undefined!");
+    } else {
+        this.container = ele;
+    }
+}
+
+BaseAlbum.prototype.init = function(opt) {
+    this.setContainer(opt.container);
+    this.container.setAttribute("class", 'wooalbum ' + this.type);
+    // set option
+    this.setLayout();
+    var ajax = opt.ajax;
+    var size = opt.size || {};
+    this.setSize(size.width || 'auto', size.height || 'auto');  
+    var gutter = opt.gutter;
+    this.setGutter(gutter.x, gutter.y);
+    if(ajax.has) {
+        this.setAjaxurl(ajax.url);
+        //this.enableScrollFetch();
+        this.fetchData(function(status, data){
+            for(var i = 0, len = data.length; i < len; i++) {
+                this.addImage(data[i]); 
+            }
+        });
+    } else {
+        var image = opt.image;
+        this.setImage(image.src || []);
+    }
+    var enableResizerefresh = opt.enableResizerefresh;
+    if(enableResizerefresh) {
+        this.enableResizeRefresh();
+    }
+    var enableFullscreen = opt.enableFullscreen;
+    if(enableFullscreen) {
+        this.enableFullscreen();
+    }
+    if(this._initCfg) {
+        this._initCfg(opt);
+    }
+    this.calLay();
+    this._init(opt);
+}
+
+BaseAlbum.prototype.layLoadItems = function() {
+    var divs = this.getImageDomElements();
+    for(var i = 0, len = divs.length; i < len; i++) {
+        this.layItem(divs[i]);
+    }
+}
+
+export default BaseAlbum;
+

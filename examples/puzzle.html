@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>WooAlbum Puzzle</title>
+    <link rel="stylesheet" type="text/css" href="../dst/modal.min.css" />
+    <link rel="stylesheet" type="text/css" href="../dst/wooalbum.min.css" />
+  </head>
+  <body>
+  <div id="album">
+  </div>
+  <script src="../dst/WooAlbum.bundle.js"></script>
+  <script>
+ (function(){
+    var ele = document.getElementById("album");
+    var option = {
+        container : ele, 
+        image : {
+            src : [
+                '/task44/image/IMG_(7).jpeg',
+            ],
+        },
+        enableResizerefresh : true,
+        enableFullscreen : true,
+        enableScrollfetch : true,
+        gutter : {
+            x : 10,
+            y : 10, 
+        },
+        ajax : {
+            has : false,
+            }
+        },
+    };
+    var images = [
+        '/task44/image/IMG_(1).jpeg',
+        '/task44/image/IMG_(2).jpeg',
+        '/task44/image/IMG_(3).jpeg',
+        '/task44/image/IMG_(4).jpeg',
+        '/task44/image/IMG_(5).jpeg',
+        '/task44/image/IMG_(6).jpeg',
+    ];
+    var i = 0;
+    var album = WooAlbum("puzzle", option);
+    var addimage = function(){
+        setTimeout(function(){
+            console.log("addImage!");
+            album.addImage(images[i++]);
+            if(i < 6) {
+                addimage();
+            }
+        }, 3000);
+    }
+    addimage();
+    }());
+  </script>
+  </body>
+</html>

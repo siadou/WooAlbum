@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>WooAlbum Barrel</title>
+    <link rel="stylesheet" type="text/css" href="../dst/modal.min.css" />
+    <link rel="stylesheet" type="text/css" href="../dst/wooalbum.min.css" />
+  </head>
+  <body>
+  <div id="album">
+  </div>
+  <script src="../dst/WooAlbum.bundle.js"></script>
+  <script>
+  (function(){
+    var ele = document.getElementById("album");
+    var option = {
+        container : ele, 
+        image : {
+            src : [
+                '/task44/image/IMG_(7).jpeg',
+            ],
+        },
+        enableResizerefresh : true,
+        enableFullscreen : true,
+        enableScrollfetch : true,
+        gutter : {
+            x : 10,
+            y : 10, 
+        },
+        ajax : {
+            has : true,
+            url : "/task44/data.json",
+            getNextpage : function(page){
+                return this.url + '?p=' + page;
+            },
+            getImages : function(data){
+                var ret = [];
+                if(data.status) {
+                    var data = data.data;
+                    for(var i = 0, len = data.length; i < len; i++) {
+                        ret.push(data[i].img);
+                    }
+                }
+                return ret;
+            }
+        },
+        barrel : {
+            heightMin: 180,
+            heightMax: 220,
+        }
+    };
+    var i = 0;
+    var album = WooAlbum("barrel", option)
+    }());
+  </script>
+  </body>
+</html>
